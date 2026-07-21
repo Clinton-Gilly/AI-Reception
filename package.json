@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:all": "concurrently -n convex,next -c magenta,cyan \"pnpm run convex:dev\" \"pnpm run dev\"",
-    "build": "npx convex deploy --cmd \"next build\"",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
