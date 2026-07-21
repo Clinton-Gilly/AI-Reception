@@ -12,6 +12,7 @@ import type * as agents from "../agents.js";
 import type * as availability from "../availability.js";
 import type * as bookings from "../bookings.js";
 import type * as catalog from "../catalog.js";
+import type * as channels from "../channels.js";
 import type * as contacts from "../contacts.js";
 import type * as conversations from "../conversations.js";
 import type * as dashboard from "../dashboard.js";
@@ -35,6 +36,7 @@ import type * as seedTestOrg from "../seedTestOrg.js";
 import type * as seedXuremiStore from "../seedXuremiStore.js";
 import type * as seedXuremiTech from "../seedXuremiTech.js";
 import type * as team from "../team.js";
+import type * as webhooks from "../webhooks.js";
 
 import type {
   ApiFromModules,
@@ -47,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   availability: typeof availability;
   bookings: typeof bookings;
   catalog: typeof catalog;
+  channels: typeof channels;
   contacts: typeof contacts;
   conversations: typeof conversations;
   dashboard: typeof dashboard;
@@ -70,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   seedXuremiStore: typeof seedXuremiStore;
   seedXuremiTech: typeof seedXuremiTech;
   team: typeof team;
+  webhooks: typeof webhooks;
 }>;
 
 /**

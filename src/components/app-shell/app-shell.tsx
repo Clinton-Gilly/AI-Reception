@@ -19,6 +19,7 @@ import {
   Settings2,
   Sparkles,
   UsersRound,
+  MessagesSquare,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -91,12 +92,14 @@ function navigationFor(
             { label: "AI Agent", segment: "voice-agent", icon: Bot },
             { label: "AI Personality", segment: "ai-personality", icon: Sparkles },
             { label: "Public Site", segment: "public-site", icon: PanelsTopLeft },
+            { label: "Channels", segment: "channels", icon: MessagesSquare },
             { label: "Inventory", segment: "inventory", icon: Package },
             { label: "Sales Analytics", segment: "sales-analytics", icon: BarChart3 },
           ]
         : [
             { label: "AI Agent", segment: "voice-agent", icon: Bot },
             { label: "Public Site", segment: "public-site", icon: PanelsTopLeft },
+            { label: "Channels", segment: "channels", icon: MessagesSquare },
           ],
     },
     {

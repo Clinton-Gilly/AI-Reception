@@ -445,5 +445,16 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_offering", ["offeringId"])
     .index("by_org_created", ["organizationId", "createdAt"]),
+
+  channelIntegrations: defineTable({
+    organizationId: v.id("organizations"),
+    platform: v.string(), // e.g., "whatsapp", "instagram", "facebook"
+    status: v.union(v.literal("connected"), v.literal("disconnected")),
+    settings: v.optional(v.string()), // JSON string for platform specific settings
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_org_platform", ["organizationId", "platform"]),
 });
 
