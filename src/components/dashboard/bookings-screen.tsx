@@ -64,7 +64,8 @@ const statuses: BookingStatus[] = [
 ];
 
 function CreateBookingDialog() {
-  const { terminology } = useWorkspace();
+  const { terminology, organization } = useWorkspace();
+  const isEcommerce = organization?.businessType === "ecommerce";
   const offerings = useQuery(dashboardApi.catalog.listOfferings, {});
   const members = useQuery(dashboardApi.team.listMembers, {});
   const createBooking = useMutation(
@@ -79,14 +80,14 @@ function CreateBookingDialog() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const startValue = String(form.get("startAt") ?? "");
-    if (!offeringId || !startValue) return;
+    if (!offeringId || (!startValue && !isEcommerce)) return;
 
     setPending(true);
     try {
       await createBooking({
         offeringId,
-        teamMemberId: memberId === "unassigned" ? undefined : memberId,
-        startAt: new Date(startValue).getTime(),
+        teamMemberId: isEcommerce ? undefined : (memberId === "unassigned" ? undefined : memberId),
+        startAt: isEcommerce ? undefined : new Date(startValue).getTime(),
         customer: {
           name: String(form.get("contactName") ?? "").trim(),
           email: String(form.get("contactEmail") ?? "").trim() || undefined,
@@ -155,7 +156,7 @@ function CreateBookingDialog() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            {!isEcommerce && <div className="space-y-1.5">
               <Label>{terminology.teamMember}</Label>
               <Select value={memberId} onValueChange={setMemberId}>
                 <SelectTrigger className="w-full">
@@ -177,11 +178,11 @@ function CreateBookingDialog() {
                     ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            </div>}
+            {!isEcommerce && <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="startAt">Start date and time</Label>
-              <Input id="startAt" name="startAt" type="datetime-local" required />
-            </div>
+              <Input id="startAt" name="startAt" type="datetime-local" required={!isEcommerce} />
+            </div>}
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="notes">Internal note</Label>
               <Input
@@ -246,6 +247,7 @@ export function BookingsScreen() {
   );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const isEcommerce = organization?.businessType === "ecommerce";
 
   const normalizedBookings = useMemo(
     () => (bookings ?? []).map(normalizeBooking),
@@ -316,10 +318,10 @@ export function BookingsScreen() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Date & time</TableHead>
+                  {!isEcommerce && <TableHead>Date & time</TableHead>}
                   <TableHead>{terminology.customer}</TableHead>
                   <TableHead>{terminology.offering}</TableHead>
-                  <TableHead className="hidden lg:table-cell">{terminology.teamMember}</TableHead>
+                  {!isEcommerce && <TableHead className="hidden lg:table-cell">{terminology.teamMember}</TableHead>}
                   <TableHead className="hidden md:table-cell">Source</TableHead>
                   <TableHead className="hidden sm:table-cell">Price</TableHead>
                   <TableHead>Status</TableHead>
@@ -329,9 +331,9 @@ export function BookingsScreen() {
               <TableBody>
                 {filtered.map((booking) => (
                   <TableRow key={booking._id}>
-                    <TableCell className="font-mono text-xs">
-                      {formatDateTime(booking.startAt, organization?.timezone)}
-                    </TableCell>
+                    {!isEcommerce && <TableCell className="font-mono text-xs">
+                      {booking.startAt ? formatDateTime(booking.startAt, organization?.timezone) : "N/A"}
+                    </TableCell>}
                     <TableCell>
                       <p className="font-medium">{booking.contactName}</p>
                       <p className="mt-0.5 max-w-40 truncate text-[11px] text-muted-foreground">
@@ -339,9 +341,9 @@ export function BookingsScreen() {
                       </p>
                     </TableCell>
                     <TableCell>{booking.offeringName}</TableCell>
-                    <TableCell className="hidden text-muted-foreground lg:table-cell">
+                    {!isEcommerce && <TableCell className="hidden text-muted-foreground lg:table-cell">
                       {booking.teamMemberName ?? "Unassigned"}
-                    </TableCell>
+                    </TableCell>}
                     <TableCell className="hidden md:table-cell">
                       <span className="font-mono text-[10px] tracking-wide uppercase">
                         {booking.source}

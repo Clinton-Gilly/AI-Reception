@@ -42,6 +42,7 @@ import type {
   PublicTeamMember,
   PublicTerminology,
 } from "@/components/public-site/types";
+import { PaymentMethodPicker, MpesaPaymentModal, type PaymentMethod } from "@/components/public-site/mpesa-payment";
 
 type BookingStep =
   | "offering"
@@ -266,6 +267,8 @@ export function BookingFlow({
     useState<BookingConfirmation | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [showMpesaModal, setShowMpesaModal] = useState(false);
   const idempotencyKeyRef = useRef<string | null>(null);
   const bookingToday = useMemo(() => todayInTimezone(timezone), [timezone]);
 
@@ -376,6 +379,34 @@ export function BookingFlow({
     idempotencyKeyRef.current = null;
   }
 
+  async function processBooking() {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    idempotencyKeyRef.current ??= makeIdempotencyKey();
+
+    try {
+      const result = await createBooking({
+        siteSlug,
+        offeringId: offeringId!,
+        ...(teamMemberId ? { teamMemberId } : {}),
+        startAt: selectedSlot!.startAt,
+        customer: {
+          name: contact.name.trim(),
+          ...(contact.email.trim() ? { email: contact.email.trim() } : {}),
+          ...(contact.phone.trim() ? { phone: contact.phone.trim() } : {}),
+        },
+        ...(contact.notes.trim() ? { notes: contact.notes.trim() } : {}),
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+      setConfirmation(result);
+      setStep("confirmation");
+    } catch (error) {
+      setSubmitError(bookingErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!offeringId || !selectedSlot) return;
@@ -392,30 +423,10 @@ export function BookingFlow({
       return;
     }
 
-    setIsSubmitting(true);
-    setSubmitError(null);
-    idempotencyKeyRef.current ??= makeIdempotencyKey();
-
-    try {
-      const result = await createBooking({
-        siteSlug,
-        offeringId,
-        ...(teamMemberId ? { teamMemberId } : {}),
-        startAt: selectedSlot.startAt,
-        customer: {
-          name,
-          ...(email ? { email } : {}),
-          ...(phone ? { phone } : {}),
-        },
-        ...(contact.notes.trim() ? { notes: contact.notes.trim() } : {}),
-        idempotencyKey: idempotencyKeyRef.current,
-      });
-      setConfirmation(result);
-      setStep("confirmation");
-    } catch (error) {
-      setSubmitError(bookingErrorMessage(error));
-    } finally {
-      setIsSubmitting(false);
+    if (paymentMethod === "mpesa") {
+      setShowMpesaModal(true);
+    } else {
+      await processBooking();
     }
   }
 
@@ -441,6 +452,7 @@ export function BookingFlow({
   }
 
   return (
+    <>
     <Card className="mx-auto w-full max-w-6xl overflow-visible bg-card/80 py-0 shadow-[0_24px_80px_-44px_color-mix(in_srgb,var(--foreground)_35%,transparent)] backdrop-blur-sm">
       <div className="grid min-h-[37rem] lg:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className="border-b bg-muted/45 p-5 lg:border-e lg:border-b-0 lg:p-6">
@@ -819,6 +831,11 @@ export function BookingFlow({
                       maxLength={1000}
                     />
                   </div>
+
+                  <div className="sm:col-span-2 pt-4">
+                    <p className="text-sm font-medium mb-2">Payment Method</p>
+                    <PaymentMethodPicker selected={paymentMethod} onSelect={setPaymentMethod} />
+                  </div>
                 </div>
 
                 {submitError ? (
@@ -843,7 +860,7 @@ export function BookingFlow({
                   You&apos;re all set, {confirmation.customer.name}
                 </h3>
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-                  {confirmation.offering.name} is booked with {confirmation.teamMember.name} at {businessName}.
+                  {confirmation.offering.name} is booked with {confirmation.teamMember?.name ?? "your provider"} at {businessName}.
                 </p>
 
                 <div className="mt-8 rounded-[calc(var(--radius)*1.35)] border bg-background p-5 text-left">
@@ -867,14 +884,14 @@ export function BookingFlow({
                     <div>
                       <dt className="text-xs text-muted-foreground">When</dt>
                       <dd className="mt-1 font-medium">
-                        {formatDateTime(confirmation.startAt, locale, timezone)}
+                        {confirmation.startAt ? formatDateTime(confirmation.startAt, locale, timezone) : "—"}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">
                         {terminology.teamMemberSingular}
                       </dt>
-                      <dd className="mt-1 font-medium">{confirmation.teamMember.name}</dd>
+                      <dd className="mt-1 font-medium">{confirmation.teamMember?.name ?? "—"}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">Total</dt>
@@ -969,8 +986,8 @@ export function BookingFlow({
                   disabled={isSubmitting}
                   className="h-11 px-4"
                 >
-                  {isSubmitting ? "Confirming…" : `Confirm ${terminology.bookingSingular.toLowerCase()}`}
-                  {!isSubmitting ? <Check data-icon="inline-end" /> : null}
+                  {isSubmitting ? "Confirming…" : paymentMethod === "mpesa" ? "Pay with M-Pesa" : `Confirm ${terminology.bookingSingular.toLowerCase()}`}
+                  {!isSubmitting && paymentMethod !== "mpesa" ? <Check data-icon="inline-end" /> : null}
                 </Button>
               ) : null}
             </div>
@@ -978,5 +995,19 @@ export function BookingFlow({
         </CardContent>
       </div>
     </Card>
+
+    {showMpesaModal && selectedOffering && (
+      <MpesaPaymentModal
+        siteSlug={siteSlug}
+        phone={contact.phone}
+        amount={selectedOffering.priceMinor / 100}
+        onSuccess={async (paymentId) => {
+           setShowMpesaModal(false);
+           await processBooking();
+        }}
+        onCancel={() => setShowMpesaModal(false)}
+      />
+    )}
+    </>
   );
 }

@@ -83,6 +83,8 @@ const TOOL_LABELS: Record<AgentToolName, string> = {
   lookup_appointment: "Finding booking",
   reschedule_appointment: "Rescheduling booking",
   cancel_appointment: "Canceling booking",
+  search_products: "Searching products",
+  place_order: "Placing order",
 };
 
 function ToolCallItem({ item }: { item: ChatToolCall }) {
@@ -179,6 +181,11 @@ function AgentLauncherInner({
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status, message: statusMessage } = useConversationStatus();
   const { mode } = useConversationMode();
+
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  useEffect(() => {
+    setDebugLogs((logs) => [...logs, `Status: ${status} | Msg: ${statusMessage || "none"}`].slice(-10));
+  }, [status, statusMessage]);
 
   const isConnected = status === "connected";
   const isConnecting = status === "connecting" || isRequestingSession;
@@ -289,9 +296,14 @@ function AgentLauncherInner({
   }
 
   return (
+    <>
+      <div className="fixed top-24 right-4 z-[9999] rounded bg-black/90 p-4 text-xs text-green-400 pointer-events-none shadow-2xl min-w-[200px]">
+        <div className="font-bold mb-2 border-b border-green-800 pb-1">Debug Status Logs:</div>
+        {debugLogs.map((log, i) => <div key={i} className="py-0.5">{log}</div>)}
+      </div>
     <Card
       id="assistant"
-      className="h-full min-h-[30rem] scroll-mt-24 gap-0 overflow-hidden border-foreground/10 bg-card/95 py-0 shadow-[0_35px_100px_-45px_color-mix(in_srgb,var(--foreground)_45%,transparent)] backdrop-blur-xl sm:min-h-[36rem]"
+      className="relative h-full min-h-[30rem] scroll-mt-24 gap-0 overflow-hidden border-foreground/10 bg-card/95 py-0 shadow-[0_35px_100px_-45px_color-mix(in_srgb,var(--foreground)_45%,transparent)] backdrop-blur-xl sm:min-h-[36rem]"
     >
       <CardHeader className="relative border-b bg-primary p-5 text-primary-foreground sm:p-6">
         <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_16%_0%,white_0,transparent_38%)]" />
@@ -508,6 +520,7 @@ function AgentLauncherInner({
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
 

@@ -54,20 +54,24 @@ export const getPublishedBySlug = query({
         currency: organization.currency,
         locale: organization.locale,
         terminology: organization.terminology,
+        businessType: organization.businessType,
       },
-      offerings: offerings
-        .filter((offering) => offering.bookableOnline)
-        .map((offering) => ({
-          _id: offering._id,
-          name: offering.name,
-          slug: offering.slug,
-          description: offering.description,
-          category: offering.category,
-          durationMinutes: offering.durationMinutes,
-          priceMinor: offering.priceMinor,
-          currency: offering.currency,
-          active: offering.active,
-        })),
+      offerings: await Promise.all(
+        offerings
+          .filter((offering) => offering.bookableOnline)
+          .map(async (offering) => ({
+            _id: offering._id,
+            name: offering.name,
+            slug: offering.slug,
+            description: offering.description,
+            category: offering.category,
+            imageUrl: offering.imageId ? await ctx.storage.getUrl(offering.imageId) : null,
+            durationMinutes: offering.durationMinutes,
+            priceMinor: offering.priceMinor,
+            currency: offering.currency,
+            active: offering.active,
+          }))
+      ),
       teamMembers: teamMembers
         .filter((member) => member.acceptingBookings)
         .sort((a, b) => a.sortOrder - b.sortOrder)

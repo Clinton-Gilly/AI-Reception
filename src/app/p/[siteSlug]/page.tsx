@@ -4,6 +4,7 @@ import { fetchQuery } from "convex/nextjs";
 
 import { api } from "../../../../convex/_generated/api";
 import { PublicSite } from "@/components/public-site/public-site";
+import { EcommerceSite } from "@/components/public-site/ecommerce-site";
 import { PublicSiteUnavailable } from "@/components/public-site/public-site-states";
 import { organizationHasFeature } from "@/lib/clerk-billing";
 
@@ -71,6 +72,18 @@ export default async function PublicSitePage({
   const agentFeatures = agentSessionConfig
     ? await getAgentFeatures(agentSessionConfig.clerkOrgId)
     : { text: false, voice: false };
+
+  if (publishedSite.organization.businessType === "ecommerce") {
+    return (
+      <EcommerceSite
+        siteSlug={siteSlug}
+        publishedSite={publishedSite}
+        // Force-enable for local e-commerce testing:
+        textAgentEnabled={true}
+        voiceAgentEnabled={true}
+      />
+    );
+  }
 
   return (
     <PublicSite

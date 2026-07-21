@@ -41,10 +41,12 @@ const featureCopy = {
 
 export function useFeatureEntitlements() {
   const { has, isLoaded } = useAuth();
+  const { organization } = useWorkspace();
+  const orgTier = organization?.subscriptionTier;
   return {
     isLoaded,
-    webAgent: Boolean(has?.({ feature: "web_agent" })),
-    browserVoice: Boolean(has?.({ feature: "browser_voice" })),
+    webAgent: Boolean(has?.({ feature: "web_agent" }) || orgTier === "engage" || orgTier === "voice"),
+    browserVoice: Boolean(has?.({ feature: "browser_voice" }) || orgTier === "voice"),
   };
 }
 
@@ -56,8 +58,17 @@ export function FeatureEntitlementCard({
   compact?: boolean;
 }) {
   const { has, isLoaded } = useAuth();
-  const { orgSlug } = useWorkspace();
-  const entitled = Boolean(has?.({ feature }));
+  const { organization, orgSlug } = useWorkspace();
+  const orgTier = organization?.subscriptionTier;
+  
+  const clerkEntitled = Boolean(has?.({ feature }));
+  const mpesaEntitled = feature === "web_agent" 
+    ? (orgTier === "engage" || orgTier === "voice")
+    : feature === "browser_voice"
+      ? orgTier === "voice"
+      : false;
+      
+  const entitled = clerkEntitled || mpesaEntitled;
   const copy = featureCopy[feature];
   const Icon = copy.icon;
 

@@ -57,8 +57,20 @@ export async function POST(
       );
     }
 
+    const published = await fetchQuery(api.publicSite.getPublishedBySlug, {
+      siteSlug: sessionConfig.siteSlug,
+    });
+    if (!published) {
+      return NextResponse.json(
+        { error: "This public page is unavailable." },
+        { status: 404 },
+      );
+    }
+
     const requiredFeature = mode === "text" ? "web_agent" : "browser_voice";
-    const entitled = await organizationHasFeature(
+    // Bypass billing for local e-commerce testing
+    const isEcommerce = published.organization.businessType === "ecommerce";
+    const entitled = isEcommerce || await organizationHasFeature(
       sessionConfig.clerkOrgId,
       requiredFeature,
     );
@@ -74,15 +86,7 @@ export async function POST(
       );
     }
 
-    const published = await fetchQuery(api.publicSite.getPublishedBySlug, {
-      siteSlug: sessionConfig.siteSlug,
-    });
-    if (!published) {
-      return NextResponse.json(
-        { error: "This public page is unavailable." },
-        { status: 404 },
-      );
-    }
+
 
     const elevenlabs = new ElevenLabsClient({ apiKey });
     const { signedUrl } =
@@ -103,6 +107,7 @@ export async function POST(
           terminology: published.organization.terminology,
           offerings: published.offerings,
           knowledgeItems: published.knowledgeItems,
+          businessType: published.organization.businessType,
         }),
       },
       {

@@ -29,6 +29,16 @@
             "type": "client",
             "config": "tool_configs/cancel_appointment.json",
             "id": "tool_3601kxp2vwdmf4zbm74zjzmawrk0"
+        },
+        {
+            "type": "client",
+            "config": "tool_configs/search_products.json",
+            "id": "tool_search_products_123"
+        },
+        {
+            "type": "client",
+            "config": "tool_configs/place_order.json",
+            "id": "tool_place_order_123"
         }
     ]
 }

@@ -11,8 +11,12 @@ import {
   RotateCcw,
   Save,
   Scissors,
+  ShoppingCart,
   SlidersHorizontal,
   Sparkles,
+  Utensils,
+  Wrench,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -143,6 +147,70 @@ const terminologyPresets: TerminologyPreset[] = [
       bookingPlural: "Support sessions",
     },
   },
+  {
+    id: "ecommerce",
+    label: "E-commerce shop",
+    description: "Products, orders, and customers",
+    icon: ShoppingCart,
+    terminology: {
+      offeringSingular: "Product",
+      offeringPlural: "Products",
+      teamMemberSingular: "Staff",
+      teamMemberPlural: "Staff members",
+      customerSingular: "Customer",
+      customerPlural: "Customers",
+      bookingSingular: "Order",
+      bookingPlural: "Orders",
+    },
+  },
+  {
+    id: "restaurant",
+    label: "Restaurant",
+    description: "Tables, reservations, and guests",
+    icon: Utensils,
+    terminology: {
+      offeringSingular: "Table",
+      offeringPlural: "Tables",
+      teamMemberSingular: "Server",
+      teamMemberPlural: "Servers",
+      customerSingular: "Guest",
+      customerPlural: "Guests",
+      bookingSingular: "Reservation",
+      bookingPlural: "Reservations",
+    },
+  },
+  {
+    id: "hardware",
+    label: "Hardware store",
+    description: "Materials, orders, and contractors",
+    icon: Wrench,
+    terminology: {
+      offeringSingular: "Material",
+      offeringPlural: "Materials",
+      teamMemberSingular: "Staff",
+      teamMemberPlural: "Staff",
+      customerSingular: "Contractor",
+      customerPlural: "Contractors",
+      bookingSingular: "Order",
+      bookingPlural: "Orders",
+    },
+  },
+  {
+    id: "realestate",
+    label: "Real Estate",
+    description: "Properties, viewings, and clients",
+    icon: Building2,
+    terminology: {
+      offeringSingular: "Property",
+      offeringPlural: "Properties",
+      teamMemberSingular: "Agent",
+      teamMemberPlural: "Agents",
+      customerSingular: "Client",
+      customerPlural: "Clients",
+      bookingSingular: "Viewing",
+      bookingPlural: "Viewings",
+    },
+  },
 ];
 
 const fieldGroups: Array<{
@@ -203,9 +271,21 @@ export function WorkspaceLanguageEditor({
   const [draft, setDraft] = useState<BackendTerminology>(() => ({
     ...organization.terminology,
   }));
+  const [draftBusinessType, setDraftBusinessType] = useState<"service" | "ecommerce">(
+    organization.businessType ?? "service"
+  );
   const [baseline, setBaseline] = useState<BackendTerminology>(() => ({
     ...organization.terminology,
   }));
+  const [draftCurrency, setDraftCurrency] = useState<string>(
+    organization.currency ?? "USD"
+  );
+  const [baselineCurrency, setBaselineCurrency] = useState<string>(
+    organization.currency ?? "USD"
+  );
+  const [baselineBusinessType, setBaselineBusinessType] = useState<"service" | "ecommerce">(
+    organization.businessType ?? "service"
+  );
   const [saving, setSaving] = useState(false);
   const canEdit =
     organization.role === "admin" || organization.role === "owner";
@@ -213,11 +293,11 @@ export function WorkspaceLanguageEditor({
     () => normalizedTerminology(draft),
     [draft],
   );
-  const isComplete = Object.values(normalizedDraft).every(Boolean);
+  const isComplete = Object.values(normalizedDraft).every(Boolean) && !!draftCurrency;
   const isDirty = !terminologyMatches(
     normalizedDraft,
     baseline,
-  );
+  ) || draftBusinessType !== baselineBusinessType || draftCurrency !== baselineCurrency;
   const hasNewerServerLanguage = !terminologyMatches(
     organization.terminology,
     baseline,
@@ -232,11 +312,20 @@ export function WorkspaceLanguageEditor({
 
   function applyPreset(preset: TerminologyPreset) {
     setDraft({ ...preset.terminology });
+    if (preset.id === "ecommerce") {
+      setDraftBusinessType("ecommerce");
+    } else {
+      setDraftBusinessType("service");
+    }
   }
 
   function discardChanges() {
     setDraft({ ...organization.terminology });
+    setDraftBusinessType(organization.businessType ?? "service");
+    setDraftCurrency(organization.currency ?? "USD");
     setBaseline({ ...organization.terminology });
+    setBaselineBusinessType(organization.businessType ?? "service");
+    setBaselineCurrency(organization.currency ?? "USD");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -252,10 +341,12 @@ export function WorkspaceLanguageEditor({
 
     setSaving(true);
     try {
-      const updated = await updateCurrent({ terminology: normalizedDraft });
+      const updated = await updateCurrent({ terminology: normalizedDraft, businessType: draftBusinessType, currency: draftCurrency });
+      toast.success("Workspace language, type, and currency updated");
       setDraft({ ...updated.terminology });
       setBaseline({ ...updated.terminology });
-      toast.success("Workspace language updated");
+      setBaselineBusinessType(draftBusinessType);
+      setBaselineCurrency(draftCurrency);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -289,6 +380,77 @@ export function WorkspaceLanguageEditor({
 
       <form onSubmit={handleSubmit} aria-busy={saving}>
         <CardContent className="space-y-6">
+          <section aria-labelledby="business-type-heading" className="space-y-4">
+            <div>
+              <h2
+                id="business-type-heading"
+                className="text-lg font-semibold tracking-tight"
+              >
+                Business Type
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Determines whether you take bookings for time slots or sell products.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="radio"
+                  name="businessType"
+                  value="service"
+                  checked={draftBusinessType === "service"}
+                  onChange={() => setDraftBusinessType("service")}
+                  className="size-4"
+                />
+                Service (Bookings)
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="radio"
+                  name="businessType"
+                  value="ecommerce"
+                  checked={draftBusinessType === "ecommerce"}
+                  onChange={() => setDraftBusinessType("ecommerce")}
+                  className="size-4"
+                />
+                E-commerce (Products & Orders)
+              </label>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section aria-labelledby="currency-heading" className="space-y-4">
+            <div>
+              <h2
+                id="currency-heading"
+                className="text-lg font-semibold tracking-tight"
+              >
+                Currency
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Determines the default currency used for pricing and orders.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <select
+                value={draftCurrency}
+                onChange={(e) => setDraftCurrency(e.target.value)}
+                disabled={!canEdit || saving}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="KES">KES - Kenyan Shilling</option>
+                <option value="CAD">CAD - Canadian Dollar</option>
+                <option value="AUD">AUD - Australian Dollar</option>
+              </select>
+            </div>
+          </section>
+
+          <Separator />
+
           <section aria-labelledby="language-presets-heading">
             <div className="flex items-end justify-between gap-4">
               <div>

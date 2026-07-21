@@ -25,6 +25,7 @@ function viewOrganization(
     timezone: organization.timezone,
     currency: organization.currency,
     locale: organization.locale,
+    businessType: organization.businessType,
     terminology: organization.terminology,
     role,
     createdAt: organization.createdAt,
@@ -129,13 +130,20 @@ export const bootstrapCurrent = mutation({
 export const current = query({
   args: {},
   handler: async (ctx) => {
-    const auth = await requireActiveClerkOrganization(ctx);
-    const organization = await ctx.db
-      .query("organizations")
-      .withIndex("by_clerk_org", (q) => q.eq("clerkOrgId", auth.clerkOrgId))
-      .unique();
-    if (!organization) return null;
-    return viewOrganization(organization, auth.role);
+    try {
+      const auth = await requireActiveClerkOrganization(ctx);
+      const organization = await ctx.db
+        .query("organizations")
+        .withIndex("by_clerk_org", (q) => q.eq("clerkOrgId", auth.clerkOrgId))
+        .unique();
+      if (!organization) return null;
+      return viewOrganization(organization, auth.role);
+    } catch (e) {
+      // During organization switching, Clerk's token might briefly lack the active org ID
+      // or the token might be missing. We return null to avoid crashing Next.js Router
+      // with a "Rendered more hooks" error during the transition.
+      return null;
+    }
   },
 });
 
@@ -145,6 +153,7 @@ export const updateCurrent = mutation({
     timezone: v.optional(v.string()),
     currency: v.optional(v.string()),
     locale: v.optional(v.string()),
+    businessType: v.optional(v.union(v.literal("service"), v.literal("ecommerce"))),
     terminology: v.optional(
       v.object({
         offeringSingular: v.string(),
@@ -223,6 +232,7 @@ export const updateCurrent = mutation({
       timezone: timezone ?? organization.timezone,
       currency: currency ?? organization.currency,
       locale: locale ?? organization.locale,
+      businessType: args.businessType ?? organization.businessType,
       terminology: terminology ?? organization.terminology,
       updatedAt: Date.now(),
     });

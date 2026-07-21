@@ -9,6 +9,7 @@ import {
   findOrCreateContact,
   normalizeCustomer,
   requireOfferingForOrganization,
+  requireTeamMemberForOrganization,
 } from "./lib/bookings";
 import { DAY_MS, MINUTE_MS } from "./lib/time";
 import { boundedInteger, optionalTrimmed, requiredTrimmed } from "./lib/validation";
@@ -77,7 +78,7 @@ export const createForCurrentOrg = mutation({
   args: {
     offeringId: v.id("offerings"),
     teamMemberId: v.optional(v.id("teamMembers")),
-    startAt: v.number(),
+    startAt: v.optional(v.number()),
     customer: v.object({
       name: v.string(),
       email: v.optional(v.string()),
@@ -95,9 +96,10 @@ export const createForCurrentOrg = mutation({
     );
     if (!offering.active) throw new Error("This offering is inactive.");
     if (
-      !Number.isInteger(args.startAt) ||
-      args.startAt % MINUTE_MS !== 0 ||
-      args.startAt <= Date.now()
+      args.startAt !== undefined &&
+      (!Number.isInteger(args.startAt) ||
+        args.startAt % MINUTE_MS !== 0 ||
+        args.startAt <= Date.now())
     ) {
       throw new Error("startAt must be a future UTC epoch timestamp aligned to a minute.");
     }
@@ -138,20 +140,40 @@ export const createForCurrentOrg = mutation({
       }
     }
 
-    const selection = await chooseAvailableTeamMember(
-      ctx,
-      organization,
-      offering,
-      args.startAt,
-      args.teamMemberId,
-    );
+    let selection;
+    if (args.startAt !== undefined) {
+      selection = await chooseAvailableTeamMember(
+        ctx,
+        organization,
+        offering,
+        args.startAt,
+        args.teamMemberId,
+      );
+    } else {
+      let member;
+      if (args.teamMemberId) {
+        member = await requireTeamMemberForOrganization(ctx, organization._id, args.teamMemberId);
+      } else {
+        const members = await ctx.db
+          .query("teamMembers")
+          .withIndex("by_org_active", (q) => q.eq("organizationId", organization._id).eq("active", true))
+          .take(1);
+        member = members[0];
+      }
+      selection = {
+        member,
+        endAt: undefined,
+        reservedStartAt: undefined,
+        reservedEndAt: undefined,
+      };
+    }
     const contact = await findOrCreateContact(ctx, organization._id, customer);
     const now = Date.now();
     const bookingId = await ctx.db.insert("bookings", {
       organizationId: organization._id,
       contactId: contact._id,
       offeringId: offering._id,
-      teamMemberId: selection.member._id,
+      teamMemberId: selection.member?._id,
       startAt: args.startAt,
       endAt: selection.endAt,
       reservedStartAt: selection.reservedStartAt,
@@ -168,10 +190,10 @@ export const createForCurrentOrg = mutation({
         priceMinor: offering.priceMinor,
         currency: offering.currency,
       },
-      teamMemberSnapshot: {
+      teamMemberSnapshot: selection.member ? {
         name: selection.member.name,
         title: selection.member.title,
-      },
+      } : undefined,
       customerSnapshot: {
         name: customer.name,
         email: customer.email,

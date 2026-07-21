@@ -30,6 +30,8 @@ export type AgentClientTools = {
   lookup_appointment: AgentClientTool;
   reschedule_appointment: AgentClientTool;
   cancel_appointment: AgentClientTool;
+  search_products: AgentClientTool;
+  place_order: AgentClientTool;
 };
 
 export type AgentToolName = keyof AgentClientTools;
@@ -235,7 +237,7 @@ function toolInputSummary(
   }
 
   const parts = [
-    optionalText(parameters.offering_name),
+    optionalText(parameters.offering_name) || optionalText(parameters.product_name),
     optionalText(parameters.team_member_name),
     optionalText(parameters.date),
   ].filter((value): value is string => Boolean(value));
@@ -253,6 +255,13 @@ function toolResultSummary(name: AgentToolName, value: string) {
 
   if (name === "get_business_info") {
     return { status: "succeeded" as const, summary: "Published details loaded" };
+  }
+  if (name === "search_products") {
+    const products = result?.products as any[];
+    return {
+      status: "succeeded" as const,
+      summary: products ? `${products.length} products found` : "Products searched",
+    };
   }
   if (name === "get_availability") {
     const count = result?.available_time_count;
@@ -357,10 +366,10 @@ function activityFromBooking(
   kind: AgentToolActivity["kind"],
   booking: {
     status: string;
-    startAt: number;
+    startAt?: number;
     confirmationCode: string;
     offering: { name: string };
-    teamMember: { name: string };
+    teamMember?: { name: string };
   },
   locale: string,
   timezone: string,
@@ -369,8 +378,8 @@ function activityFromBooking(
     kind,
     status: booking.status,
     offeringName: booking.offering.name,
-    teamMemberName: booking.teamMember.name,
-    localTime: formatLocalTime(booking.startAt, locale, timezone),
+    teamMemberName: booking.teamMember?.name ?? "",
+    localTime: booking.startAt ? formatLocalTime(booking.startAt, locale, timezone) : "",
     confirmationCode: booking.confirmationCode,
   };
 }
@@ -548,9 +557,9 @@ export function createAgentClientTools({
           status: booking.status,
           confirmation_code: booking.confirmationCode,
           offering_name: booking.offering.name,
-          team_member_name: booking.teamMember.name,
+          team_member_name: booking.teamMember?.name ?? "",
           start_time_iso: booking.startTimeISO,
-          local_time: formatLocalTime(booking.startAt, locale, timezone),
+          local_time: booking.startAt ? formatLocalTime(booking.startAt, locale, timezone) : "",
         });
       } catch (error) {
         return toolError(error);
@@ -575,9 +584,9 @@ export function createAgentClientTools({
           status: booking.status,
           confirmation_code: booking.confirmationCode,
           offering_name: booking.offering.name,
-          team_member_name: booking.teamMember.name,
+          team_member_name: booking.teamMember?.name ?? "",
           start_time_iso: booking.startTimeISO,
-          local_time: formatLocalTime(booking.startAt, locale, timezone),
+          local_time: booking.startAt ? formatLocalTime(booking.startAt, locale, timezone) : "",
         });
       } catch (error) {
         return toolError(error);
@@ -612,9 +621,9 @@ export function createAgentClientTools({
           status: booking.status,
           confirmation_code: booking.confirmationCode,
           offering_name: booking.offering.name,
-          team_member_name: booking.teamMember.name,
+          team_member_name: booking.teamMember?.name ?? "",
           start_time_iso: booking.startTimeISO,
-          local_time: formatLocalTime(booking.startAt, locale, timezone),
+          local_time: booking.startAt ? formatLocalTime(booking.startAt, locale, timezone) : "",
         });
       } catch (error) {
         return toolError(error);
@@ -642,9 +651,83 @@ export function createAgentClientTools({
           status: booking.status,
           confirmation_code: booking.confirmationCode,
           offering_name: booking.offering.name,
-          team_member_name: booking.teamMember.name,
+          team_member_name: booking.teamMember?.name ?? "",
           start_time_iso: booking.startTimeISO,
-          local_time: formatLocalTime(booking.startAt, locale, timezone),
+          local_time: booking.startAt ? formatLocalTime(booking.startAt, locale, timezone) : "",
+        });
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+
+    search_products: async (parameters) => {
+      try {
+        const query = optionalText(parameters.query)?.toLowerCase();
+        const results = query
+          ? offerings.filter(o => 
+              o.name.toLowerCase().includes(query) || 
+              o.description?.toLowerCase().includes(query)
+            )
+          : offerings;
+
+        return JSON.stringify({
+          success: true,
+          products: results.map(o => ({
+            name: o.name,
+            description: o.description,
+            price: formatPrice(o.priceMinor, o.currency, locale),
+          })),
+        });
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+
+    place_order: async (parameters) => {
+      try {
+        const offering = resolveOffering(parameters.product_name);
+        const customerName = requiredText(parameters.customer_name, "customer_name");
+        const phone = requiredText(parameters.phone, "phone");
+        const email = optionalText(parameters.email);
+        const notes = optionalText(parameters.notes);
+
+        const booking = await convex.mutation(api.publicBooking.create, {
+          siteSlug,
+          offeringId: offering._id,
+          startAt: Date.now() + 1000 * 60 * 60 * 24, // e-commerce: immediate dispatch in 24h
+          customer: {
+            name: customerName,
+            phone,
+            ...(email ? { email } : {}),
+          },
+          ...(notes ? { notes } : {}),
+          idempotencyKey: stableIdempotencyKey(
+            JSON.stringify({
+              siteSlug,
+              offeringId: offering._id,
+              customerName: customerName.toLowerCase(),
+              phone: phone.replace(/\D/g, ""),
+              email: email?.toLowerCase() ?? null,
+              notes: notes ?? null,
+            }),
+          ),
+          source: "web_agent",
+        });
+
+        onActivity?.({
+          kind: "booked",
+          status: booking.status,
+          offeringName: booking.offering.name,
+          teamMemberName: "",
+          localTime: formatLocalTime(Date.now(), locale, timezone),
+          confirmationCode: booking.confirmationCode,
+        });
+
+        return JSON.stringify({
+          success: true,
+          action: "order_placed",
+          confirmation_code: booking.confirmationCode,
+          product_name: booking.offering.name,
         });
       } catch (error) {
         return toolError(error);
@@ -696,6 +779,22 @@ export function createAgentClientTools({
     cancel_appointment: trackTool(
       "cancel_appointment",
       tools.cancel_appointment,
+      onToolEvent,
+      slotRegistry,
+      locale,
+      timezone,
+    ),
+    search_products: trackTool(
+      "search_products",
+      tools.search_products,
+      onToolEvent,
+      slotRegistry,
+      locale,
+      timezone,
+    ),
+    place_order: trackTool(
+      "place_order",
+      tools.place_order,
       onToolEvent,
       slotRegistry,
       locale,
@@ -772,6 +871,14 @@ export function AgentClientToolRegistrar(
   useConversationClientTool<AgentClientTools>(
     "cancel_appointment",
     tools.cancel_appointment,
+  );
+  useConversationClientTool<AgentClientTools>(
+    "search_products",
+    tools.search_products,
+  );
+  useConversationClientTool<AgentClientTools>(
+    "place_order",
+    tools.place_order,
   );
 
   return null;

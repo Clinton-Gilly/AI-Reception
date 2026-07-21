@@ -54,6 +54,7 @@ export function createAgentDynamicVariables({
   offerings,
   knowledgeItems,
   bookingInstruction,
+  businessType,
 }: {
   siteSlug: string;
   businessName: string;
@@ -65,6 +66,7 @@ export function createAgentDynamicVariables({
   offerings: OfferingContext[];
   knowledgeItems: KnowledgeContext[];
   bookingInstruction?: string;
+  businessType?: "service" | "ecommerce";
 }) {
   const formatter = new Intl.NumberFormat(locale, {
     style: "currency",
@@ -98,7 +100,9 @@ export function createAgentDynamicVariables({
     ),
     booking_instruction:
       bookingInstruction ??
-      `Today is ${localDate} in ${timezone}. Resolve an unqualified weekday such as Monday to its next future occurrence after this date. Use the booking tools to check live availability, create ${terminology.bookingPlural.toLowerCase()}, and securely look up, reschedule, or cancel existing ${terminology.bookingPlural.toLowerCase()}. Once the offering and date are known, call get_availability immediately before asking which time the customer prefers. Never redirect the customer to the booking panel when a tool can complete the request. If many times are available, offer at most five useful choices and ask whether the customer prefers another part of the day. Output only customer-facing speech: never narrate private reasoning, plans, or tool names.`,
+      (businessType === "ecommerce"
+        ? `Today is ${localDate} in ${timezone}. You are a friendly, enthusiastic style assistant for ${businessName}. Your goals are: (1) Help customers find and order products using the search_products and place_order tools. (2) Actively UPSELL and CROSS-SELL — if a customer orders shoes, suggest a matching shirt or jacket from the inventory. If a customer buys clothes, suggest shoes that complete the look. Say things like "That shirt would look amazing with our [product] — want me to add that too?" (3) Offer BUNDLE DEALS: if a customer wants to buy 2 or more items, suggest a small bundle discount ("Since you're buying both, I can knock off a little for you 😊"). (4) When a customer asks for an item, call search_products first. After they choose a product, confirm the order details and ask for their phone number. Once confirmed, call place_order. (5) Output only customer-facing speech: never narrate private reasoning, plans, or tool names.`
+        : `Today is ${localDate} in ${timezone}. Resolve an unqualified weekday such as Monday to its next future occurrence after this date. Use the booking tools to check live availability, create ${terminology.bookingPlural.toLowerCase()}, and securely look up, reschedule, or cancel existing ${terminology.bookingPlural.toLowerCase()}. Once the offering and date are known, call get_availability immediately before asking which time the customer prefers. Never redirect the customer to the booking panel when a tool can complete the request. If many times are available, offer at most five useful choices and ask whether the customer prefers another part of the day. Output only customer-facing speech: never narrate private reasoning, plans, or tool names.`),
     interaction_channel: "web",
     contact_number_policy:
       "This is a React web session, including text chat or browser audio. The first reply after detecting a booking, booking lookup, reschedule, cancellation, callback, or other contact-dependent request must ask for a contact phone number before giving directions or collecting other details. Confirm the number, then continue. General information does not require a phone number.",

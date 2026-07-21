@@ -28,6 +28,7 @@ import {
   getOfferingPrice,
   type Offering,
 } from "@/components/dashboard/data";
+import { api } from "../../../convex/_generated/api";
 import {
   ActivePill,
   EmptyState,
@@ -42,10 +43,12 @@ function OfferingDialog({ offering }: { offering?: Offering }) {
   const { organization, terminology } = useWorkspace();
   const createOffering = useMutation(dashboardApi.catalog.createOffering);
   const updateOffering = useMutation(dashboardApi.catalog.updateOffering);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [category, setCategory] = useState(offering?.category ?? "General");
   const [active, setActive] = useState(offering?.active ?? true);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,10 +67,22 @@ function OfferingDialog({ offering }: { offering?: Offering }) {
 
     setPending(true);
     try {
+      let imageId = offering?.imageId;
+      if (imageFile) {
+        const postUrl = await generateUploadUrl();
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": imageFile.type },
+          body: imageFile,
+        });
+        const { storageId } = await result.json();
+        imageId = storageId;
+      }
+
       if (offering) {
-        await updateOffering({ offeringId: offering._id, ...payload });
+        await updateOffering({ offeringId: offering._id, imageId, ...payload });
       } else {
-        await createOffering(payload);
+        await createOffering({ ...payload, imageId });
       }
       toast.success(
         `${terminology.offering} ${offering ? "updated" : "created"}`,
@@ -141,6 +156,20 @@ function OfferingDialog({ offering }: { offering?: Offering }) {
                 placeholder="General, Support, Consultations…"
                 required
               />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor={`image-${offering?._id ?? "new"}`}>
+                Product/Service Image
+              </Label>
+              <Input
+                id={`image-${offering?._id ?? "new"}`}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              />
+              {offering?.imageUrl && !imageFile && (
+                <img src={offering.imageUrl} alt="Current offering image" className="h-16 w-16 mt-2 rounded object-cover" />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor={`duration-${offering?._id ?? "new"}`}>
@@ -223,14 +252,22 @@ export function OfferingsScreen() {
               <CardContent className="flex h-full flex-col pt-0">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span
-                      className="grid size-10 place-items-center rounded-lg border border-black/10 text-white shadow-sm"
-                      style={{ backgroundColor: getOfferingColor(offering) }}
-                    >
-                      <span className="font-mono text-xs font-semibold">
-                        {String(index + 1).padStart(2, "0")}
+                    {offering.imageUrl ? (
+                      <img
+                        src={offering.imageUrl}
+                        alt={offering.name}
+                        className="size-10 rounded-lg border border-black/10 object-cover shadow-sm"
+                      />
+                    ) : (
+                      <span
+                        className="grid size-10 place-items-center rounded-lg border border-black/10 text-white shadow-sm"
+                        style={{ backgroundColor: getOfferingColor(offering) }}
+                      >
+                        <span className="font-mono text-xs font-semibold">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
                       </span>
-                    </span>
+                    )}
                     <div>
                       <h2 className="font-heading text-lg font-semibold tracking-tight">
                         {offering.name}

@@ -80,6 +80,9 @@ export default defineSchema({
     timezone: v.string(),
     currency: v.string(),
     locale: v.string(),
+    businessType: v.optional(v.union(v.literal("service"), v.literal("ecommerce"))),
+    subscriptionTier: v.optional(v.union(v.literal("core"), v.literal("engage"), v.literal("voice"))),
+    subscriptionExpiresAt: v.optional(v.number()),
     terminology,
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -104,6 +107,7 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(),
     description: v.string(),
+    imageId: v.optional(v.id("_storage")),
     category: v.string(),
     durationMinutes: v.number(),
     bufferBeforeMinutes: v.number(),
@@ -180,11 +184,11 @@ export default defineSchema({
     publicSiteId: v.optional(v.id("publicSites")),
     contactId: v.id("contacts"),
     offeringId: v.id("offerings"),
-    teamMemberId: v.id("teamMembers"),
-    startAt: v.number(),
-    endAt: v.number(),
-    reservedStartAt: v.number(),
-    reservedEndAt: v.number(),
+    teamMemberId: v.optional(v.id("teamMembers")),
+    startAt: v.optional(v.number()),
+    endAt: v.optional(v.number()),
+    reservedStartAt: v.optional(v.number()),
+    reservedEndAt: v.optional(v.number()),
     status: v.union(
       v.literal("pending"),
       v.literal("confirmed"),
@@ -207,7 +211,7 @@ export default defineSchema({
       priceMinor: v.number(),
       currency: v.string(),
     }),
-    teamMemberSnapshot: v.object({ name: v.string(), title: v.string() }),
+    teamMemberSnapshot: v.optional(v.object({ name: v.string(), title: v.string() })),
     customerSnapshot: v.object({
       name: v.string(),
       email: v.optional(v.string()),
@@ -316,6 +320,31 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_org_published", ["organizationId", "published"]),
 
+  mpesaPayments: defineTable({
+    organizationId: v.id("organizations"),
+    siteSlug: v.string(),
+    bookingId: v.optional(v.id("bookings")),
+    checkoutRequestId: v.string(),
+    merchantRequestId: v.string(),
+    phone: v.string(),
+    amountMinor: v.number(),
+    currency: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("success"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    resultCode: v.optional(v.number()),
+    resultDescription: v.optional(v.string()),
+    isSubscription: v.optional(v.boolean()),
+    planType: v.optional(v.union(v.literal("engage"), v.literal("voice"))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_checkout_request", ["checkoutRequestId"])
+    .index("by_organization", ["organizationId"]),
+
   // Legacy declarations intentionally remain during the data migration. No
   // public functions read or write these tables anymore.
   businesses: defineTable({
@@ -374,4 +403,47 @@ export default defineSchema({
     question: v.string(),
     answer: v.string(),
   }).index("by_business", ["businessId"]),
+
+  productReviews: defineTable({
+    organizationId: v.id("organizations"),
+    offeringId: v.id("offerings"),
+    rating: v.number(),
+    comment: v.string(),
+    reviewerName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_offering", ["offeringId"]),
+
+  ecommerceSettings: defineTable({
+    organizationId: v.id("organizations"),
+    bargainingStyle: v.union(v.literal("strict"), v.literal("lenient")),
+    maxDiscountPercentage: v.number(),
+    languageEnglish: v.boolean(),
+    languageKiswahili: v.boolean(),
+    languageSheng: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_organization", ["organizationId"]),
+
+  stockLevels: defineTable({
+    organizationId: v.id("organizations"),
+    offeringId: v.id("offerings"),
+    quantity: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_offering", ["offeringId"]),
+
+  aiSalesEvents: defineTable({
+    organizationId: v.id("organizations"),
+    offeringId: v.id("offerings"),
+    revenueMinor: v.number(),
+    discountMinor: v.number(),
+    discountPercentage: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_offering", ["offeringId"])
+    .index("by_org_created", ["organizationId", "createdAt"]),
 });
+

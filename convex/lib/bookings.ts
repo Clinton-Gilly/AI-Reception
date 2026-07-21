@@ -170,13 +170,15 @@ export async function hasBookingOverlap(
   if (candidates.length > MAX_OVERLAP_CANDIDATES) {
     throw new Error("Availability is too dense to verify safely for this window.");
   }
-  return candidates.some(
-    (booking) =>
-      booking._id !== excludeBookingId &&
-      booking.status !== "canceled" &&
-      booking.reservedStartAt < reservedEndAt &&
-      booking.reservedEndAt > reservedStartAt,
-  );
+    return candidates.some(
+      (booking) =>
+        booking._id !== excludeBookingId &&
+        booking.status !== "canceled" &&
+        booking.reservedStartAt !== undefined &&
+        booking.reservedEndAt !== undefined &&
+        booking.reservedStartAt < reservedEndAt &&
+        booking.reservedEndAt > reservedStartAt,
+    );
 }
 
 export async function chooseAvailableTeamMember(
@@ -317,8 +319,8 @@ function hashString(value: string): string {
   return (hash >>> 0).toString(36).toUpperCase().padStart(7, "0").slice(-7);
 }
 
-export function confirmationCode(startAt: number, fingerprint: string): string {
-  return `BK-${new Date(startAt).toISOString().slice(2, 10).replaceAll("-", "")}-${hashString(fingerprint).slice(-5)}`;
+export function confirmationCode(startAt: number | undefined, fingerprint: string): string {
+  return `BK-${new Date(startAt ?? Date.now()).toISOString().slice(2, 10).replaceAll("-", "")}-${hashString(fingerprint).slice(-5)}`;
 }
 
 export function bookingView(booking: Doc<"bookings">) {
@@ -327,8 +329,8 @@ export function bookingView(booking: Doc<"bookings">) {
     status: booking.status,
     startAt: booking.startAt,
     endAt: booking.endAt,
-    startTimeISO: new Date(booking.startAt).toISOString(),
-    endTimeISO: new Date(booking.endAt).toISOString(),
+    startTimeISO: booking.startAt ? new Date(booking.startAt).toISOString() : undefined,
+    endTimeISO: booking.endAt ? new Date(booking.endAt).toISOString() : undefined,
     confirmationCode: booking.confirmationCode,
     offering: booking.offeringSnapshot,
     teamMember: booking.teamMemberSnapshot,

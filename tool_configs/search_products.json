@@ -1,0 +1,24 @@
+{
+    "name": "search_products",
+    "description": "Find products and get product details. Call this when a user asks for a product or item.",
+    "type": "client",
+    "expects_response": true,
+    "pre_tool_speech": "off",
+    "response_timeout_secs": 30,
+    "parameters": {
+        "type": "object",
+        "description": "Search for products.",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query for product."
+            }
+        },
+        "required": [
+            "query"
+        ]
+    },
+    "dynamic_variables": {
+        "dynamic_variable_placeholders": {}
+    }
+}

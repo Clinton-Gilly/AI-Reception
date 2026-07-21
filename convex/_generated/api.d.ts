@@ -15,6 +15,10 @@ import type * as catalog from "../catalog.js";
 import type * as contacts from "../contacts.js";
 import type * as conversations from "../conversations.js";
 import type * as dashboard from "../dashboard.js";
+import type * as ecommerce from "../ecommerce.js";
+import type * as ecommerceSettings from "../ecommerceSettings.js";
+import type * as files from "../files.js";
+import type * as http from "../http.js";
 import type * as knowledge from "../knowledge.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_bookings from "../lib/bookings.js";
@@ -22,10 +26,14 @@ import type * as lib_defaults from "../lib/defaults.js";
 import type * as lib_siteConfig from "../lib/siteConfig.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_validation from "../lib/validation.js";
+import type * as mpesa from "../mpesa.js";
 import type * as organizations from "../organizations.js";
 import type * as publicBooking from "../publicBooking.js";
 import type * as publicSite from "../publicSite.js";
 import type * as seed from "../seed.js";
+import type * as seedTestOrg from "../seedTestOrg.js";
+import type * as seedXuremiStore from "../seedXuremiStore.js";
+import type * as seedXuremiTech from "../seedXuremiTech.js";
 import type * as team from "../team.js";
 
 import type {
@@ -42,6 +50,10 @@ declare const fullApi: ApiFromModules<{
   contacts: typeof contacts;
   conversations: typeof conversations;
   dashboard: typeof dashboard;
+  ecommerce: typeof ecommerce;
+  ecommerceSettings: typeof ecommerceSettings;
+  files: typeof files;
+  http: typeof http;
   knowledge: typeof knowledge;
   "lib/auth": typeof lib_auth;
   "lib/bookings": typeof lib_bookings;
@@ -49,10 +61,14 @@ declare const fullApi: ApiFromModules<{
   "lib/siteConfig": typeof lib_siteConfig;
   "lib/time": typeof lib_time;
   "lib/validation": typeof lib_validation;
+  mpesa: typeof mpesa;
   organizations: typeof organizations;
   publicBooking: typeof publicBooking;
   publicSite: typeof publicSite;
   seed: typeof seed;
+  seedTestOrg: typeof seedTestOrg;
+  seedXuremiStore: typeof seedXuremiStore;
+  seedXuremiTech: typeof seedXuremiTech;
   team: typeof team;
 }>;
 

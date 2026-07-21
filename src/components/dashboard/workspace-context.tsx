@@ -69,16 +69,23 @@ export function WorkspaceProvider({
     orgSlug,
   ]);
 
+  const activeOrganization =
+    organization &&
+    clerkOrganization &&
+    organization.clerkOrgId !== clerkOrganization.id
+      ? null
+      : (organization ?? null);
+
   const value = useMemo<WorkspaceContextValue>(
     () => ({
       orgSlug,
-      organization: organization ?? null,
-      terminology: organization
-        ? normalizeTerminology(organization.terminology)
+      organization: activeOrganization,
+      terminology: activeOrganization
+        ? normalizeTerminology(activeOrganization.terminology)
         : defaultTerminology,
-      isBootstrapping: organization === undefined || isCreating,
+      isBootstrapping: activeOrganization === null || isCreating,
     }),
-    [isCreating, organization, orgSlug],
+    [isCreating, activeOrganization, orgSlug],
   );
 
   return (

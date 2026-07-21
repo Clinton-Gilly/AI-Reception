@@ -42,7 +42,7 @@ function BookingRow({ booking }: { booking: Booking }) {
   return (
     <div className="grid grid-cols-[3.5rem_1fr_auto] items-start gap-3 py-3.5 sm:grid-cols-[4.5rem_1fr_auto]">
       <p className="font-mono text-xs font-semibold tracking-tight">
-        {formatTime(booking.startAt, organization?.timezone)}
+        {booking.startAt ? formatTime(booking.startAt, organization?.timezone) : "—"}
       </p>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -92,7 +92,7 @@ export function OverviewScreen() {
     }).format(value);
   const todayKey = localDateKey(referenceTime);
   const today = upcomingBookings.filter(
-    (booking) => localDateKey(booking.startAt) === todayKey,
+    (booking) => booking.startAt && localDateKey(booking.startAt) === todayKey,
   );
 
   const metrics = [

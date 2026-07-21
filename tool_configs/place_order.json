@@ -1,0 +1,42 @@
+{
+    "name": "place_order",
+    "description": "Place an order for a product. Call this after the user confirms they want to place an order.",
+    "type": "client",
+    "expects_response": true,
+    "pre_tool_speech": "off",
+    "response_timeout_secs": 30,
+    "parameters": {
+        "type": "object",
+        "description": "Order details confirmed by the customer.",
+        "properties": {
+            "product_name": {
+                "type": "string",
+                "description": "Exact published product name."
+            },
+            "customer_name": {
+                "type": "string",
+                "description": "Customer's name."
+            },
+            "phone": {
+                "type": "string",
+                "description": "Contact phone number the web customer provided and confirmed."
+            },
+            "email": {
+                "type": "string",
+                "description": "Optional customer email address."
+            },
+            "notes": {
+                "type": "string",
+                "description": "Optional short notes the customer asked to add."
+            }
+        },
+        "required": [
+            "product_name",
+            "customer_name",
+            "phone"
+        ]
+    },
+    "dynamic_variables": {
+        "dynamic_variable_placeholders": {}
+    }
+}

@@ -390,6 +390,8 @@ export const getAvailability = query({
           const overlaps = bookings.some(
             (booking) =>
               booking.status !== "canceled" &&
+              booking.reservedStartAt !== undefined &&
+              booking.reservedEndAt !== undefined &&
               booking.reservedStartAt < reservedEndAt &&
               booking.reservedEndAt > reservedStartAt,
           );
@@ -646,7 +648,7 @@ export const cancel = mutation({
     if (booking.status !== "pending" && booking.status !== "confirmed") {
       throw new Error(`A ${booking.status} booking cannot be canceled online.`);
     }
-    if (booking.startAt <= Date.now()) {
+    if (booking.startAt !== undefined && booking.startAt <= Date.now()) {
       throw new Error("Past bookings cannot be canceled online.");
     }
     await ctx.db.patch(booking._id, {
@@ -761,6 +763,114 @@ export const reschedule = mutation({
     return {
       success: true as const,
       booking: publicManagementView((await ctx.db.get(booking._id))!),
+    };
+  },
+});
+
+export const trackOrders = query({
+  args: {
+    siteSlug: v.string(),
+    identifier: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { site, organization } = await publicContext(ctx, args.siteSlug, false);
+
+    const identifier = args.identifier.trim();
+    if (!identifier) return [];
+
+    let bookings: Doc<"bookings">[] = [];
+
+    // First try by confirmation code
+    const byCode = await ctx.db
+      .query("bookings")
+      .withIndex("by_org_confirmation", (q) =>
+        q.eq("organizationId", organization._id).eq("confirmationCode", identifier)
+      )
+      .first();
+
+    if (byCode) {
+      bookings = [byCode];
+    } else {
+      // Try by phone number
+      const phone = normalizedPhone(identifier);
+      if (phone) {
+        const contact = await ctx.db
+          .query("contacts")
+          .withIndex("by_org_phone", (q) =>
+            q.eq("organizationId", organization._id).eq("phoneNormalized", phone)
+          )
+          .first();
+
+        if (contact) {
+          bookings = await ctx.db
+            .query("bookings")
+            .withIndex("by_org_contact", (q) => 
+              q.eq("organizationId", organization._id).eq("contactId", contact._id)
+            )
+            .order("desc")
+            .take(50);
+        }
+      }
+    }
+
+    // Map to public view
+    const results = [];
+    for (const booking of bookings) {
+      const offeringName = booking.offeringSnapshot?.name || "Unknown Product";
+      const priceMinor = booking.offeringSnapshot?.priceMinor || 0;
+      const currency = booking.offeringSnapshot?.currency || organization.currency;
+
+      results.push({
+        _id: booking._id,
+        status: booking.status,
+        offeringName,
+        priceMinor,
+        currency,
+        createdAt: booking.createdAt,
+        startAt: booking.startAt,
+      });
+    }
+
+    return results;
+  },
+});
+
+export const getBookingByCode = query({
+  args: {
+    siteSlug: v.string(),
+    confirmationCode: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const siteSlug = args.siteSlug.trim().toLowerCase();
+    const site = await ctx.db
+      .query("publicSites")
+      .withIndex("by_site_slug", (q) => q.eq("siteSlug", siteSlug))
+      .unique();
+    if (!site?.published) return null;
+
+    const booking = await ctx.db
+      .query("bookings")
+      .withIndex("by_org_confirmation", (q) =>
+        q
+          .eq("organizationId", site.organizationId)
+          .eq("confirmationCode", args.confirmationCode),
+      )
+      .first();
+
+    if (!booking) {
+      return null;
+    }
+
+    const offering = await ctx.db.get(booking.offeringId);
+    return {
+      _id: booking._id,
+      status: booking.status,
+      startAt: booking.startAt,
+      offeringSnapshot: booking.offeringSnapshot,
+      customerSnapshot: booking.customerSnapshot,
+      confirmationCode: booking.confirmationCode,
+      createdAt: booking.createdAt,
+      offeringImageId: offering?.imageId,
     };
   },
 });

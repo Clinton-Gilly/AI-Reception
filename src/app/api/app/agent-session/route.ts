@@ -84,6 +84,7 @@ export async function POST() {
           terminology: organization.terminology,
           offerings,
           knowledgeItems,
+          businessType: organization.businessType,
         }),
       },
       { headers: { "Cache-Control": "no-store" } },

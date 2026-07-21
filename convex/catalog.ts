@@ -10,8 +10,12 @@ import {
 import { slugify } from "./lib/defaults";
 import { boundedInteger, optionalTrimmed, requiredTrimmed } from "./lib/validation";
 
-function offeringView(offering: Doc<"offerings">) {
-  return offering;
+async function offeringView(ctx: any, offering: Doc<"offerings">) {
+  let imageUrl;
+  if (offering.imageId) {
+    imageUrl = await ctx.storage.getUrl(offering.imageId);
+  }
+  return { ...offering, imageUrl };
 }
 
 export const listOfferings = query({
@@ -32,9 +36,8 @@ export const listOfferings = query({
           )
           .take(501);
     if (rows.length > 500) throw new Error("Offering limit exceeded.");
-    return rows
-      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
-      .map(offeringView);
+    const sortedRows = rows.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+    return await Promise.all(sortedRows.map(row => offeringView(ctx, row)));
   },
 });
 
@@ -42,6 +45,7 @@ export const createOffering = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
+    imageId: v.optional(v.id("_storage")),
     category: v.optional(v.string()),
     durationMinutes: v.number(),
     bufferBeforeMinutes: v.optional(v.number()),
@@ -68,6 +72,7 @@ export const createOffering = mutation({
       name,
       slug,
       description: optionalTrimmed(args.description, "description", 2_000) ?? "",
+      imageId: args.imageId,
       category: optionalTrimmed(args.category, "category", 80) ?? "General",
       durationMinutes: boundedInteger(
         args.durationMinutes,
@@ -95,7 +100,7 @@ export const createOffering = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    return offeringView((await ctx.db.get(id))!);
+    return await offeringView(ctx, (await ctx.db.get(id))!);
   },
 });
 
@@ -104,6 +109,7 @@ export const updateOffering = mutation({
     offeringId: v.id("offerings"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    imageId: v.optional(v.id("_storage")),
     category: v.optional(v.string()),
     durationMinutes: v.optional(v.number()),
     bufferBeforeMinutes: v.optional(v.number()),
@@ -126,6 +132,7 @@ export const updateOffering = mutation({
         args.description === undefined
           ? offering.description
           : optionalTrimmed(args.description, "description", 2_000) ?? "",
+      imageId: args.imageId === undefined ? offering.imageId : args.imageId,
       category:
         args.category === undefined
           ? offering.category
@@ -169,6 +176,6 @@ export const updateOffering = mutation({
       bookableOnline: args.bookableOnline ?? offering.bookableOnline,
       updatedAt: Date.now(),
     });
-    return offeringView((await ctx.db.get(offering._id))!);
+    return await offeringView(ctx, (await ctx.db.get(offering._id))!);
   },
 });

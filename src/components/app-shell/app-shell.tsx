@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import {
+  BarChart3,
   Bot,
   CalendarDays,
   ChevronRight,
@@ -13,6 +14,7 @@ import {
   Clock3,
   CreditCard,
   LayoutDashboard,
+  Package,
   PanelsTopLeft,
   Settings2,
   Sparkles,
@@ -56,7 +58,9 @@ type NavItem = {
 
 function navigationFor(
   terminology: Terminology,
+  businessType?: "service" | "ecommerce",
 ): Array<{ label: string; items: NavItem[] }> {
+  const bookingSegment = businessType === "ecommerce" ? "orders" : "bookings";
   return [
     {
       label: "Operate",
@@ -64,7 +68,7 @@ function navigationFor(
         { label: "Overview", segment: "", icon: LayoutDashboard },
         {
           label: terminology.bookingPlural,
-          segment: "bookings",
+          segment: bookingSegment,
           icon: CalendarDays,
         },
         {
@@ -82,10 +86,18 @@ function navigationFor(
     },
     {
       label: "Experience",
-      items: [
-        { label: "AI Agent", segment: "voice-agent", icon: Bot },
-        { label: "Public Site", segment: "public-site", icon: PanelsTopLeft },
-      ],
+      items: businessType === "ecommerce"
+        ? [
+            { label: "AI Agent", segment: "voice-agent", icon: Bot },
+            { label: "AI Personality", segment: "ai-personality", icon: Sparkles },
+            { label: "Public Site", segment: "public-site", icon: PanelsTopLeft },
+            { label: "Inventory", segment: "inventory", icon: Package },
+            { label: "Sales Analytics", segment: "sales-analytics", icon: BarChart3 },
+          ]
+        : [
+            { label: "AI Agent", segment: "voice-agent", icon: Bot },
+            { label: "Public Site", segment: "public-site", icon: PanelsTopLeft },
+          ],
     },
     {
       label: "Workspace",
@@ -168,7 +180,7 @@ function ShellChrome({
     dashboardApi.publicSite.getCurrentDraft,
     organization ? {} : "skip",
   );
-  const navigation = navigationFor(terminology);
+  const navigation = navigationFor(terminology, organization?.businessType);
   const routeLabels = Object.fromEntries(
     navigation.flatMap((section) =>
       section.items.map((item) => [item.segment, item.label]),

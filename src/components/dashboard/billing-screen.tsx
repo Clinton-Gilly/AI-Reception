@@ -1,21 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { PricingTable, useAuth } from "@clerk/nextjs";
 import { Check, CreditCard, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FeatureEntitlementCard } from "@/components/dashboard/feature-gates";
 import { ScreenHeader } from "@/components/dashboard/screen-kit";
 import { useWorkspace } from "@/components/dashboard/workspace-context";
+import { MpesaSubscriptionModal } from "@/components/public-site/mpesa-payment";
 
 export function BillingScreen() {
   const { has, isLoaded } = useAuth();
   const { organization } = useWorkspace();
-  const currentTier = has?.({ plan: "org:voice" })
+  const [selectedMpesaPlan, setSelectedMpesaPlan] = useState<"engage" | "voice" | null>(null);
+  const [showMpesaModal, setShowMpesaModal] = useState(false);
+
+  const orgTier = organization?.subscriptionTier;
+  const currentTier = has?.({ plan: "org:voice" }) || orgTier === "voice"
     ? "Voice"
-    : has?.({ plan: "org:engage" })
+    : has?.({ plan: "org:engage" }) || orgTier === "engage"
       ? "Engage"
       : "Core";
 
@@ -100,11 +107,68 @@ export function BillingScreen() {
         </div>
       </section>
 
+      <section className="mt-8">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.16em] text-green-600 uppercase">
+              M-Pesa Alternatives
+            </p>
+            <h2 className="mt-1 font-heading text-2xl font-semibold tracking-[-0.025em]">
+              Pay with M-Pesa.
+            </h2>
+          </div>
+          <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
+            <Check className="size-3.5" /> Manual monthly renewal
+          </span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+           <Card className="flex flex-col justify-between">
+              <CardContent className="pt-6">
+                 <h3 className="text-xl font-bold font-heading">Engage</h3>
+                 <p className="text-sm text-muted-foreground mt-2">Add an ElevenLabs web concierge to every customer touchpoint.</p>
+                 <div className="mt-4 mb-6">
+                    <span className="text-3xl font-bold">KES 5,000</span>
+                    <span className="text-muted-foreground text-sm">/month</span>
+                 </div>
+                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setSelectedMpesaPlan("engage"); setShowMpesaModal(true); }}>
+                    Buy with M-Pesa
+                 </Button>
+              </CardContent>
+           </Card>
+           <Card className="flex flex-col justify-between">
+              <CardContent className="pt-6">
+                 <h3 className="text-xl font-bold font-heading">Voice</h3>
+                 <p className="text-sm text-muted-foreground mt-2">Add live browser audio to the web concierge and measure every outcome.</p>
+                 <div className="mt-4 mb-6">
+                    <span className="text-3xl font-bold">KES 15,500</span>
+                    <span className="text-muted-foreground text-sm">/month</span>
+                 </div>
+                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setSelectedMpesaPlan("voice"); setShowMpesaModal(true); }}>
+                    Buy with M-Pesa
+                 </Button>
+              </CardContent>
+           </Card>
+        </div>
+      </section>
+
       <div className="mt-4 flex items-start gap-2 rounded-lg border border-black/10 bg-white p-3 text-[11px] leading-5 text-muted-foreground">
         <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" />
         Switchboard gates capabilities by Clerk feature entitlement, so a feature
         can move between plans without changing application code.
       </div>
+
+      {showMpesaModal && selectedMpesaPlan && organization && (
+        <MpesaSubscriptionModal
+          organizationId={organization._id}
+          planType={selectedMpesaPlan}
+          amount={selectedMpesaPlan === "engage" ? 5000 : 15500}
+          onSuccess={(paymentId) => {
+             setShowMpesaModal(false);
+             window.location.reload();
+          }}
+          onCancel={() => setShowMpesaModal(false)}
+        />
+      )}
     </>
   );
 }

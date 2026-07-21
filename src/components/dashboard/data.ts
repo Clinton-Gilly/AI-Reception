@@ -45,6 +45,9 @@ export type Organization = {
   timezone: string;
   locale: string;
   currency: string;
+  businessType?: "service" | "ecommerce";
+  subscriptionTier?: "core" | "engage" | "voice";
+  subscriptionExpiresAt?: number;
   terminology: BackendTerminology;
   role?: string;
   createdAt?: number;
@@ -61,10 +64,10 @@ export type BookingStatus =
 export type RawBooking = {
   bookingId: string;
   status: BookingStatus;
-  startAt: number;
-  endAt: number;
-  startTimeISO: string;
-  endTimeISO: string;
+  startAt?: number;
+  endAt?: number;
+  startTimeISO?: string;
+  endTimeISO?: string;
   confirmationCode: string;
   offering: {
     name: string;
@@ -72,7 +75,7 @@ export type RawBooking = {
     priceMinor: number;
     currency: string;
   };
-  teamMember: { name: string; title: string };
+  teamMember?: { name: string; title: string };
   customer: { name: string; email?: string; phone?: string };
   source?: "dashboard" | "public_site" | "web_agent";
   notes?: string;
@@ -82,8 +85,8 @@ export type RawBooking = {
 
 export type Booking = {
   _id: string;
-  startAt: number;
-  endAt: number;
+  startAt?: number;
+  endAt?: number;
   status: BookingStatus;
   source: string;
   contactName: string;
@@ -101,6 +104,8 @@ export type Offering = {
   name: string;
   slug: string;
   description: string;
+  imageId?: string;
+  imageUrl?: string;
   category: string;
   durationMinutes: number;
   bufferBeforeMinutes: number;
@@ -250,6 +255,40 @@ export type Overview = {
   recentConversations: Conversation[];
 };
 
+export type EcommerceSettings = {
+  _id: string;
+  organizationId: string;
+  bargainingStyle: "strict" | "lenient";
+  maxDiscountPercentage: number;
+  languageEnglish: boolean;
+  languageKiswahili: boolean;
+  languageSheng: boolean;
+  updatedAt: number;
+};
+
+export type StockLevel = {
+  _id: string;
+  organizationId: string;
+  offeringId: string;
+  quantity: number;
+  updatedAt: number;
+};
+
+export type AiSalesEvent = {
+  _id: string;
+  organizationId: string;
+  offeringId: string;
+  offeringName?: string;
+  revenueMinor: number;
+  discountMinor: number;
+  discountPercentage: number;
+  createdAt: number;
+};
+
+export type SalesAnalytics = {
+  events: AiSalesEvent[];
+};
+
 type CreateOfferingArgs = {
   name: string;
   description?: string;
@@ -261,6 +300,7 @@ type CreateOfferingArgs = {
   capacity?: number;
   active?: boolean;
   bookableOnline?: boolean;
+  imageId?: string;
 };
 
 type UpdateOfferingArgs = Partial<CreateOfferingArgs> & { offeringId: string };
@@ -300,6 +340,7 @@ export const dashboardApi = api as unknown as {
         currency?: string;
         locale?: string;
         terminology?: BackendTerminology;
+        businessType?: "service" | "ecommerce";
       },
       Organization
     >;
@@ -321,7 +362,7 @@ export const dashboardApi = api as unknown as {
       {
         offeringId: string;
         teamMemberId?: string;
-        startAt: number;
+        startAt?: number;
         customer: { name: string; email?: string; phone?: string };
         notes?: string;
         idempotencyKey?: string;
@@ -378,6 +419,21 @@ export const dashboardApi = api as unknown as {
   agents: {
     getCurrent: QueryRef<Record<string, never>, AgentConfiguration>;
   };
+  ecommerceSettings: {
+    getSettings: QueryRef<{ organizationId: string }, EcommerceSettings>;
+    updateSettings: MutationRef<
+      Omit<EcommerceSettings, "_id" | "updatedAt">,
+      EcommerceSettings
+    >;
+  };
+  ecommerce: {
+    getStockLevels: QueryRef<{ organizationId: string }, StockLevel[]>;
+    updateStockLevel: MutationRef<
+      { organizationId: string; offeringId: string; quantity: number },
+      StockLevel
+    >;
+    getSalesAnalytics: QueryRef<{ organizationId: string }, SalesAnalytics>;
+  };
 };
 
 export const defaultTerminology: Terminology = {
@@ -418,7 +474,7 @@ export function normalizeBooking(booking: RawBooking): Booking {
     contactEmail: booking.customer.email,
     contactPhone: booking.customer.phone,
     offeringName: booking.offering.name,
-    teamMemberName: booking.teamMember.name,
+    teamMemberName: booking.teamMember?.name ?? "",
     priceCents: booking.offering.priceMinor,
     currency: booking.offering.currency,
     confirmationCode: booking.confirmationCode,

@@ -117,7 +117,10 @@ export const requestPublicSession = mutation({
         q.eq("organizationId", organization._id).eq("provider", "elevenlabs"),
       )
       .unique();
-    if (!integration?.webEnabled) return null;
+    // Bypass webEnabled check for ecommerce testing locally
+    if (organization.businessType !== "ecommerce" && !integration?.webEnabled) {
+      return null;
+    }
 
     const now = Date.now();
     const minuteWindowStart = Math.floor(now / 60_000) * 60_000;
